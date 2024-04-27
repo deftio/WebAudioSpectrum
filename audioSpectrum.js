@@ -89,16 +89,27 @@ document.addEventListener('DOMContentLoaded', function () {
     
         let barWidth = WIDTH / bufferLength;
         let barHeight;
+        let x = 0;
         for (let i = 0; i < bufferLength; i++) {
             barHeight = processedData[i];
-
-            let x = isLogScale && i !== 0 ? (Math.log2(i + 1) / Math.log2(bufferLength) * WIDTH) : i * barWidth;
-
+    
+            if (isLogScale) {
+                // Apply logarithmic scaling - adjust this formula as needed
+                if (i === 0) {
+                    x = 0; // Avoid log(0) which is undefined
+                } else {
+                    x = (Math.log(i) / Math.log(bufferLength)) * WIDTH;
+                }
+            } else {
+                x = i * barWidth; // Linear scale
+            }
+    
             ctx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
             ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
         }
         drawSpectrogram(processedData);
     }
+    
 
     function drawSpectrogram(processedData) {
         // Push a copy of processed data to maintain original data integrity
