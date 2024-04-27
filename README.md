@@ -7,7 +7,7 @@ This project is a simple audio spectrum analyzer that visualizes real-time audio
 
 Additionally, it includes functionality to detect and log the top `z` peaks in the frequency spectrum.
 
-See demo here: https://deftio.github.io/WebAudioSpectra
+See demo here: https://deftio.github.io/WebAudioSpectrum
 
 ## Features
 
