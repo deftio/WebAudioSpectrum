@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Audio Spectrum Analyzer</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    canvas {
+      width: 100%;
+      height: 200px;
+    }
+    button {
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-center my-4">Web Audio Spectrum Analyzer</h1>
+    <div class="text-center">
+      <button id="start-button" class="btn btn-primary">Start Microphone</button>
+    </div>
+    <canvas id="oscilloscope" class="my-3"></canvas>
+    <canvas id="magnitude-spectrum" class="my-3"></canvas>
+    <canvas id="spectrogram" class="my-3"></canvas>
+  </div>
+  <script>
+    const startButton = document.getElementById('start-button');
+    const oscilloscopeCanvas = document.getElementById('oscilloscope');
+    const magnitudeSpectrumCanvas = document.getElementById('magnitude-spectrum');
+    const spectrogramCanvas = document.getElementById('spectrogram');
+
+    let audioContext, analyser, microphone, audioProcessorNode;
+    let isMicrophoneActive = false;
+
+    const fftSize = 2048;
+    const bufferLength = fftSize;
+    const dataArray = new Float32Array(bufferLength);
+    const magnitudeArray = new Float32Array(bufferLength / 2);
+    const spectrogramData = [];
+
+    startButton.addEventListener('click', async () => {
+      if (!isMicrophoneActive) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        const processorCode = `
+          class AudioProcessor extends AudioWorkletProcessor {
+            static get parameterDescriptors() {
+              return [];
+            }
+
+            process(inputs, outputs, parameters) {
+              const input = inputs[0];
+              if (input.length > 0) {
+                this.port.postMessage(input[0][0]);
+              }
+              return true;
+            }
+          }
+
+          registerProcessor('audio-processor', AudioProcessor);
+        `;
+
+        const blob = new Blob([processorCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        await audioContext.audioWorklet.addModule(url);
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = fftSize;
+            microphone = audioContext.createMediaStreamSource(stream);
+            audioProcessorNode = new AudioWorkletNode(audioContext, 'audio-processor');
+
+            microphone.connect(analyser);
+            analyser.connect(audioProcessorNode).connect(audioContext.destination);
+
+            audioProcessorNode.port.onmessage = (event) => {
+              analyser.getFloatTimeDomainData(dataArray);
+              analyser.getFloatFrequencyData(magnitudeArray);
+              drawOscilloscope();
+              drawMagnitudeSpectrum();
+              updateSpectrogram();
+              drawSpectrogram();
+            };
+          })
+          .catch(err => {
+            console.error('Error accessing the microphone', err);
+          });
+
+        audioContext.resume();
+        isMicrophoneActive = true;
+        startButton.textContent = 'Stop Microphone';
+      } else {
+        if (audioContext) {
+          audioContext.close();
+          isMicrophoneActive = false;
+          startButton.textContent = 'Start Microphone';
+        }
+      }
+    });
+
+    function drawOscilloscope() {
+      const canvasCtx = oscilloscopeCanvas.getContext('2d');
+      canvasCtx.clearRect(0, 0, oscilloscopeCanvas.width, oscilloscopeCanvas.height);
+
+      canvasCtx.beginPath();
+      const sliceWidth = oscilloscopeCanvas.width * 1.0 / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] * 200.0;
+        const y = oscilloscopeCanvas.height / 2 + v;
+
+        if (i === 0) {
+          canvasCtx.moveTo(x, y);
+        } else {
+          canvasCtx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+      }
+
+      canvasCtx.lineTo(oscilloscopeCanvas.width, oscilloscopeCanvas.height / 2);
+      canvasCtx.stroke();
+    }
+
+    function drawMagnitudeSpectrum() {
+      const canvasCtx = magnitudeSpectrumCanvas.getContext('2d');
+      canvasCtx.clearRect(0, 0, magnitudeSpectrumCanvas.width, magnitudeSpectrumCanvas.height);
+
+      const barWidth = (magnitudeSpectrumCanvas.width / (bufferLength / 2)) * 2.5;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength / 2; i++) {
+        const barHeight = (magnitudeArray[i] + 140) * 2;
+        canvasCtx.fillStyle = 'rgb(' + Math.floor(barHeight + 100) + ',50,50)';
+        canvasCtx.fillRect(x, magnitudeSpectrumCanvas.height - barHeight / 2, barWidth, barHeight / 2);
+        x += barWidth + 1;
+      }
+    }
+
+    function updateSpectrogram() {
+      spectrogramData.push([...magnitudeArray]);
+      if (spectrogramData.length > spectrogramCanvas.height) {
+        spectrogramData.shift();
+      }
+    }
+
+    function drawSpectrogram() {
+      const canvasCtx = spectrogramCanvas.getContext('2d');
+      const imageData = canvasCtx.createImageData(spectrogramCanvas.width, spectrogramCanvas.height);
+
+      for (let y = 0; y < spectrogramData.length; y++) {
+        for (let x = 0; x < bufferLength / 2; x++) {
+          const value = (spectrogramData[y][x] + 140) * 2;
+          const index = (x + y * spectrogramCanvas.width) * 4;
+          imageData.data[index] = value; // Red
+          imageData.data[index + 1] = 50; // Green
+          imageData.data[index + 2] = 50; // Blue
+          imageData.data[index + 3] = 255; // Alpha
+        }
+      }
+
+      canvasCtx.putImageData(imageData, 0, 0);
+    }
+  </script>
+</body>
+</html>
