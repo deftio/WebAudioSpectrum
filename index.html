@@ -3,36 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Spectrum Analyzer</title>
+    <title>Web Audio Spectrum Analyzer</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 1.5rem;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+            text-align: left;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            text-align: left;
+        }
+
+        .controls {
+            margin-bottom: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        #toggle {
+            background-color: #28a745;
+            color: white;
+        }
+
+        #toggle:hover {
+            background-color: #218838;
+        }
+
+        #toggle.stop {
+            background-color: #dc3545;
+        }
+
+        #toggle.stop:hover {
+            background-color: #c82333;
+        }
+
+        .secondary-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .secondary-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .toggle-btn {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        .toggle-btn:hover {
+            background-color: #dee2e6;
+        }
+
+        .toggle-btn.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .canvas-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 0.25rem;
+            padding: 0.4rem;
+        }
+
+        .canvas-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 0.2rem;
+            font-weight: 500;
+            text-align: left;
+        }
+
+        canvas {
             width: 100%;
-            height: 100vh;
-            margin: 5% auto;
-            padding: 5%;
+            display: block;
+            background: #000;
+            border-radius: 4px;
+        }
+
+        #oscilloscopeCanvas {
+            height: 140px;
         }
 
         #spectrumCanvas {
-            margin-top: 10px;
-            border: 1px solid black;
-            height: 25vh;
-            width: 100%;
+            height: 200px;
         }
 
         #spectrogramCanvas {
-            border: 1px solid black;
-            height: 45vh;
-            width: 100%;
+            height: 180px;
         }
-        button {
-            border-radius: 0.7em !important;
-            padding: 10px;
-            font-size: 1em;
-            background-color: #007bff;
-            color: white;
-            border: none;
+
+        #oscilloscopeContainer {
+            display: none;
+        }
+
+        #oscilloscopeContainer.show {
+            display: block;
+        }
+
+        .container {
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.25rem;
+            }
+            
+            .controls {
+                padding: 0.75rem;
+            }
+            
+            button {
+                font-size: 0.85rem;
+                padding: 0.4rem 0.8rem;
+            }
         }
     </style>
     
@@ -40,19 +167,35 @@
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 </head>
 <body>
-    <h1>Audio Spectrum Analyzer</h1>
-    <p>Click the button below to start sampling audio</p>
-    <button id="toggle">Start Sampling</button>
-    <button id="toggleScale">Toggle Frequency Scale (Log/Lin)</button>
-    <button id="toggleWindow">Switch to Hamming Window</button>
+    <div class="main-container">
+        <h1>Web Audio Spectrum Analyzer</h1>
+        <p class="subtitle">Real-time audio visualization from your microphone</p>
+        
+        <div class="controls">
+            <button id="toggle">Start Sampling</button>
+            <button id="toggleOscilloscope" class="toggle-btn">Show Oscilloscope</button>
+            <button id="toggleOscilloscopeScale" class="toggle-btn" style="display: none;">Scope: Linear</button>
+            <button id="toggleScale" class="toggle-btn">Scale: Linear</button>
+            <button id="toggleWindow" class="toggle-btn">Window: Rectangular</button>
+        </div>
 
-    <canvas id="spectrumCanvas"></canvas>
-    <canvas id="spectrogramCanvas"></canvas>
+        <div id="oscilloscopeContainer" class="canvas-container">
+            <div class="canvas-label" id="oscilloscopeLabel">Oscilloscope (Time Domain) - Linear</div>
+            <canvas id="oscilloscopeCanvas"></canvas>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-label" id="spectrumLabel">Frequency Spectrum - Linear</div>
+            <canvas id="spectrumCanvas"></canvas>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-label" id="spectrogramLabel">Spectrogram (Time-Frequency) - Linear</div>
+            <canvas id="spectrogramCanvas"></canvas>
+        </div>
+    </div>
 
     <script src="audioSpectrum.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-        crossorigin="anonymous"></script>
 
 </body>
 
