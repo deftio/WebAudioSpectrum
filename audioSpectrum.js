@@ -70,12 +70,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    function applyWindowFunction(dataArray) {
-        let windowedArray = new Uint8Array(dataArray.length);
-        for (let i = 0; i < dataArray.length; i++) {
-            windowedArray[i] = dataArray[i] * (useHammingWindow ? (0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (dataArray.length - 1))) : 1);
+    function applyScaling(bufferLength, width) {
+        let list = Array.from({length: bufferLength}, (item, index) => index);
+        if (isLogScale) {
+            // Apply logarithmic scaling - adjust this formula as needed
+            x = list.map(num => Math.log(num) / Math.log(bufferLength) * width);
+            x[0] = 0; // Avoid log(0) which is undefined
+        } else {
+            x = list.map(num => num / bufferLength * width); // Linear scale
         }
-        return windowedArray;
+        return x;
     }
 
     function drawSpectrum() {
@@ -83,31 +87,22 @@ document.addEventListener('DOMContentLoaded', function () {
         const HEIGHT = canvas.height;
         analyser.getByteFrequencyData(dataArray);
     
-        let processedData = applyWindowFunction(dataArray);
+        let processedData = dataArray.slice(); // Create a copy of the data array
         ctx.fillStyle = 'rgb(0, 0, 0)';
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
     
         let barWidth = WIDTH / bufferLength;
         let barHeight;
-        let x = 0;
+        let list = applyScaling(bufferLength, WIDTH);
         for (let i = 0; i < bufferLength; i++) {
             barHeight = processedData[i];
-    
-            if (isLogScale) {
-                // Apply logarithmic scaling - adjust this formula as needed
-                if (i === 0) {
-                    x = 0; // Avoid log(0) which is undefined
-                } else {
-                    x = (Math.log(i) / Math.log(bufferLength)) * WIDTH;
-                }
-            } else {
-                x = i * barWidth; // Linear scale
+            if (useHammingWindow) {
+                barHeight *= (0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (bufferLength - 1))); // Apply Hamming window
             }
-    
             ctx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
-            ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+            ctx.fillRect(list[i], HEIGHT - barHeight, barWidth, barHeight);
         }
-        drawSpectrogram(processedData);
+        drawSpectrogram(dataArray);
     }
     
 
@@ -125,14 +120,18 @@ document.addEventListener('DOMContentLoaded', function () {
         spectrogramCtx.fillStyle = 'rgb(0, 0, 0)';
         spectrogramCtx.fillRect(0, 0, spectrogramCanvas.width, spectrogramCanvas.height);
     
+        list = applyScaling(bufferLength, spectrogramCanvas.width);
         // Draw each frame stored in the spectrogram data
         spectrogramData.forEach((frameData, index) => {
             for (let bin = 0; bin < bufferLength; bin++) {
-                const value = frameData[bin];
+                let value = frameData[bin];
+                if (useHammingWindow) {
+                    value *= (0.54 - 0.46 * Math.cos((2 * Math.PI * bin) / (bufferLength - 1))); // Apply Hamming window
+                }
                 const brightness = value / 256;
                 spectrogramCtx.fillStyle = `rgb(0, ${brightness * 255}, ${brightness * 255})`;
                 // Calculate the correct y position for each frame
-                spectrogramCtx.fillRect(bin * width, spectrogramCanvas.height - (index + 1) * height, width, height);
+                spectrogramCtx.fillRect(list[bin], spectrogramCanvas.height - (index + 1) * height, width, height);
             }
         });
     }
