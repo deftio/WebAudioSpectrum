@@ -56,7 +56,7 @@ The oscilloscope displays the audio waveform as it varies over time, showing the
 - **Scaling modes**:
   - **Linear**: Direct representation of the signal amplitude
   - **Log**: Enhances small signals using logarithmic scaling, useful for viewing quiet sounds
-  - **Compand**: Compresses large amplitudes while expanding small ones, allowing both loud and quiet signals to be visible simultaneously.  For more on companding, visit the companion repo here (companders)[https://github.com/deftio/companders]
+  - **Compand**: Compresses large amplitudes while expanding small ones, allowing both loud and quiet signals to be visible simultaneously.  For more on companding, visit the companion repo here [companders](https://github.com/deftio/companders)
 
 ### Frequency Spectrum (Frequency Domain)
 
