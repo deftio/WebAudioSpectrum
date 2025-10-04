@@ -4,6 +4,8 @@ A audio spectrum analyzer that visualizes real-time audio input from your microp
 
 See demo here: https://deftio.github.io/WebAudioSpectrum
 
+For a quick primer on time/frequency domains, FFTs, windowing, and common waveforms, see [AudioSpectra.md](AudioSpectra.md).
+
 ## Features
 
 - **Oscilloscope (Time Domain)**: Shows the waveform of the audio signal over time
@@ -36,7 +38,7 @@ See demo here: https://deftio.github.io/WebAudioSpectrum
 ### Components
 - `index.html`: The HTML file that hosts the application.
 - `audioSpectrum.js`: The JavaScript file that handles audio processing and visualization.
-- `styles.css`: Optional CSS file for custom styling (if separate from `index.html`).
+
 
 ### Key Functions
 - `updateSpectrum()`: Main animation loop coordinating all visualizations
